@@ -1,0 +1,49 @@
+Robots协议(君子协议, 表示对爬虫有哪些限制): http://www.taobao.com/robots.txt
+User-agent: Baiduspider
+Disallow: /
+
+超文本传输协议（HTTP）,HTTP 是传输 HTML (超文本标记语言）数据的协议, 构建在 TCP（传输控制协议）之上.
+HTTP 请求通常是由请求行、请求头、空行、消息体四个部分构成，如果没有数据发给服务器，消息体就不是必须的部分。请求行中包含了请求方法（GET、POST 等，如下表所示）、资源路径和协议版本；请求头由若干键值对构成，包含了浏览器、编码方式、首选语言、缓存策略等信息；请求头的后面是空行和消息体。
+GET 请求页面并返回页面内容
+HEAD 返回的响应中没有具体内容，用于获取表头
+POST 提交表单，上传文件
+PUT 从客户端向服务器传送数据取代指定文档中内容
+DELETE 删除指定页面
+CONNECT 服务器代替客户端访问其他网页
+OPTIONS 允许客户端查看服务器性能
+TRACE 回显服务器收到的请求
+
+HTTP 响应通常是由响应行、响应头、空行、消息体四个部分构成，其中消息体是服务响应的数据，可能是 HTML 页面，也有可能是JSON或二进制数据等.
+
+基本的爬虫通常分为数据采集（网页下载）、数据处理（网页解析）和数据存储（将有用的信息持久化）三个部分
+设定抓取目标（种子页面/起始页面）并获取网页。
+当服务器无法访问时，按照指定的重试次数尝试重新下载页面。
+在需要的时候设置用户代理或隐藏真实IP，否则可能无法访问页面。
+对获取的页面进行必要的解码操作然后抓取出需要的信息。
+在获取的页面中通过某种方式（如正则表达式）抽取出页面中的链接信息。
+对链接进行进一步的处理（获取页面并重复上面的动作）。
+将有用的信息进行持久化以备后续的处理。
+
+requests库 (requests是基于 Python 标准库进行了封装，简化了通过 HTTP 或 HTTPS 访问网络资源的操作。)
+
+import requests
+
+for page in range(1, 11):
+    resp = requests.get(
+        url=f'https://movie.douban.com/top250?start={(page - 1) * 25}',
+        # 如果不设置HTTP请求头中的User-Agent，豆瓣会检测出不是浏览器而阻止我们的请求。
+        # 通过get函数的headers参数设置User-Agent的值，具体的值可以在浏览器的开发者工具查看到。
+        # 用爬虫访问大部分网站时，将爬虫伪装成来自浏览器的请求都是非常重要的一步。
+        headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36'}
+    )
+    # 通过正则表达式获取class属性为title且标签体不以&开头的span标签并用捕获组提取标签内容
+    pattern1 = re.compile(r'<span class="title">([^&]*?)</span>')
+    titles = pattern1.findall(resp.text)
+    # 通过正则表达式获取class属性为rating_num的span标签并用捕获组提取标签内容
+    pattern2 = re.compile(r'<span class="rating_num".*?>(.*?)</span>')
+    ranks = pattern2.findall(resp.text)
+    # 使用zip压缩两个列表，循环遍历所有的电影标题和评分
+    for title, rank in zip(titles, ranks):
+        print(title, rank)
+    # 随机休眠1-5秒，避免爬取页面过于频繁
+    time.sleep(random.random() * 4 + 1)

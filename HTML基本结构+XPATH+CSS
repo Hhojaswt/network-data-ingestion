@@ -1,0 +1,83 @@
+HTML 页面的结构
+代码的第1行是文档类型声明，第2行的<html>标签是整个页面根标签的开始标签，最后一行是根标签的结束标签</html>。
+<html>标签下面有两个子标签<head>和<body>，放在<body>标签下的内容会显示在浏览器窗口中，这部分内容是网页的主体；放在<head>标签下的内容不会显示在浏览器窗口中，但是却包含了页面重要的元信息，通常称之为网页的头部。HTML 页面大致的代码结构如下所示。
+<!doctype html>
+<html>
+    <head>
+        <!-- 页面的元信息，如字符编码、标题、关键字、媒体查询等 -->
+    </head>
+    <body>
+        <!-- 页面的主体，显示在浏览器窗口中的内容 -->
+    </body>
+</html>
+标签、层叠样式表（CSS）、JavaScript 是构成 HTML 页面的三要素. 
+标签用来承载页面要显示的内容，CSS 负责对页面的渲染，而 JavaScript 用来控制页面的交互式行为。要实现 HTML 页面的解析，可以使用 XPath 的语法，它原本是 XML 的一种查询语法，可以根据 HTML 标签的层次结构提取标签中的内容或标签属性；此外，也可以使用 CSS 选择器来定位页面元素，
+
+
+XPath 解析
+XPath 是在 XML（eXtensible Markup Language）文档中查找信息的一种语法，XML 跟 HTML 类似也是一种用标签承载数据的标签语言，不同之处在于 XML 的标签是可扩展的，可以自定义的
+
+<?xml version="1.0" encoding="UTF-8"?>
+<bookstore> 选取根元素 bookstore
+    <book> 选取所有 book 子元素
+      <title lang="eng">Harry Potter</title> 选取名为 lang 的所有属性。
+      <price>29.99</price>
+    </book>
+    <book>
+      <title lang="zh">Learning XML</title> 选取所有拥有名为 lang 的属性的 title 元素。
+      <price>39.95</price>
+    </book>
+</bookstore>
+
+XPath 解析方式改写之前获取豆瓣电影 Top250的代码
+from lxml import etree
+import requests
+
+for page in range(1, 11):
+    resp = requests.get(
+        url=f'https://movie.douban.com/top250?start={(page - 1) * 25}',
+        headers={'User-Agent': 'BaiduSpider'}
+    )
+    tree = etree.HTML(resp.text)
+    # 通过XPath语法从页面中提取电影标题
+    title_spans = tree.xpath('//*[@id="content"]/div/div[1]/ol/li/div/div[2]/div[1]/a/span[1]') *表示所有元素节点，而//表示从文档的任何位置开始查找（递归查找子元素）。在整个HTML文档中，查找id为content的元素
+    # 通过XPath语法从页面中提取电影评分
+    rank_spans = tree.xpath('//*[@id="content"]/div/div[1]/ol/li[1]/div/div[2]/div[2]/div/span[2]') 
+    for title_span, rank_span in zip(title_spans, rank_spans):
+        print(title_span.text, rank_span.text)
+
+
+
+Beautiful Soup 可以用来解析 HTML 和 XML 文档，修复含有未闭合标签等错误的文档，通过为待解析的页面在内存中创建一棵树结构，实现对从页面中提取数据操作的封装。
+import bs4
+import requests
+
+for page in range(1, 11):
+    resp = requests.get(
+        url=f'https://movie.douban.com/top250?start={(page - 1) * 25}',
+        headers={'User-Agent': 'BaiduSpider'}
+    )
+    # 创建BeautifulSoup对象
+    soup = bs4.BeautifulSoup(resp.text, 'lxml')
+    # 通过CSS选择器从页面中提取包含电影标题的span标签
+    title_spans = soup.select('div.info > div.hd > a > span:nth-child(1)') 从具有 info 类名的 div 元素开始，依次选择其直接子元素中具有 hd 类名的 div 元素，再选择其中的 a 元素，最后选择 a 元素下的第一个 span 元素。
+span:nth-child(1) 表示在 a 元素下的所有子元素中，选择第一个 span 元素。如果该 span 是 a 元素的第一个子元素，便会被选中。
+    # 通过CSS选择器从页面中提取包含电影评分的span标签
+    rank_spans = soup.select('div.info > div.bd > div > span.rating_num')
+    for title_span, rank_span in zip(title_spans, rank_spans):
+        print(title_span.text, rank_span.text)
+
+相当于:
+<div class="info">
+  <div class="hd">
+    <a href="#">
+      <span>First span</span>
+      <span>Second span</span>
+    </a>
+  </div>
+</div>
+
+解析方式	对应的模块	速度	使用难度
+正则表达式解析	re	快	困难
+XPath 解析	lxml	快	一般
+CSS 选择器解析	bs4或pyquery	不确定	简单

@@ -103,3 +103,26 @@ def main():
 
 资源竞争
 在编写多线程代码时，不可避免的会遇到多个线程竞争同一个资源（对象）的情况。可以使用锁机制，通过锁对操作数据的关键代码加以保护。Python 标准库的threading模块提供了Lock和RLock类来支持锁机制，这里我们不去深究二者的区别，建议大家直接使用RLock
+
+class Account(object):
+    """银行账户"""
+
+    def __init__(self):
+        self.balance = 0.0
+        self.lock = RLock()//创建一个 递归锁 (RLock)，用于在多线程环境下保护账户余额的访问。
+
+    def deposit(self, money):
+        # 通过上下文语法获得锁和释放锁
+        with self.lock://确保在执行以下代码时获得锁，并且在代码块执行完毕后自动释放锁。
+            new_balance = self.balance + money//self.balance 是当前账户的余额。money 是存款的金额。将当前余额和存款金额相加，计算出新的余额 new_balance。
+            time.sleep(0.01)
+            self.balance = new_balance//将计算出的新的余额 new_balance 存储回账户余额 self.balance 中。
+
+
+def main():
+    """主函数"""
+    account = Account()
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        for _ in range(100):
+            pool.submit(account.deposit, 1)
+    print(account.balance)

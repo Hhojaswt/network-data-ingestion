@@ -1,0 +1,105 @@
+线程和进程
+进程是操作系统分配存储空间的基本单位，每个进程都有自己的地址空间、数据栈以及其他用于跟踪进程执行的辅助数据
+一个进程还可以拥有多个执行线索，简单的说就是拥有多个可以获得 CPU 调度的执行单元，这就是所谓的线程。
+并发通常是指同一时刻只能有一条指令执行，但是多个线程对应的指令被快速轮换地执行。
+并行是指同一时刻，有多条指令在多个处理器上同时执行.
+
+
+多线程编程
+Python 标准库中threading模块的Thread类可以帮助我们非常轻松的实现多线程编程。
+def main():
+    threads = [
+        Thread(target=download, kwargs={'filename': 'Python从入门到住院.pdf'}),
+        Thread(target=download, kwargs={'filename': 'MySQL从删库到跑路.avi'}),
+        Thread(target=download, kwargs={'filename': 'Linux从精通到放弃.mp4'})
+    ]
+    start = time.time()
+    # 启动三个线程
+    for thread in threads:
+        thread.start()
+    # 等待线程结束
+    for thread in threads:
+        thread.join()
+    end = time.time()
+    print(f'总耗时: {end - start:.3f}秒.')
+直接使用Thread类的构造器就可以创建线程对象，而线程对象的start()方法可以启动一个线程。
+线程启动后会执行target参数指定的函数，当然前提是获得 CPU 的调度；如果target指定的线程要执行的目标函数有参数，需要通过args参数为其进行指定，对于关键字参数，可以通过kwargs参数进行传入。
+
+
+还可以通过继承Thread类并重写run()方法的方式来自定义线程，具体的代码如下所示。
+class DownloadThread(Thread):
+
+    def __init__(self, filename):
+        self.filename = filename
+        super().__init__()
+
+    def run(self):
+        start = time.time()
+        print(f'开始下载 {self.filename}.')
+        time.sleep(random.randint(3, 6))
+        print(f'{self.filename} 下载完成.')
+        end = time.time()
+        print(f'下载耗时: {end - start:.3f}秒.')
+
+
+def main():
+    threads = [
+        DownloadThread('Python从入门到住院.pdf'),
+        DownloadThread('MySQL从删库到跑路.avi'),
+        DownloadThread('Linux从精通到放弃.mp4')
+    ]
+    start = time.time()
+    # 启动三个线程
+    for thread in threads:
+        thread.start()
+    # 等待线程结束
+    for thread in threads:
+        thread.join()
+    end = time.time()
+    print(f'总耗时: {end - start:.3f}秒.')
+
+
+if __name__ == '__main__':
+    main()
+
+
+使用线程池
+利用线程池，可以提前准备好若干个线程，在使用的过程中不需要再通过自定义的代码创建和释放线程，而是直接复用线程池中的线程。Python 内置的concurrent.futures模块提供了对线程池的支持
+def main():
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        filenames = ['Python从入门到住院.pdf', 'MySQL从删库到跑路.avi', 'Linux从精通到放弃.mp4']
+        start = time.time()
+        for filename in filenames:
+            pool.submit(download, filename=filename)
+    end = time.time()
+    print(f'总耗时: {end - start:.3f}秒.')
+
+
+守护线程
+守护线程会跟随主线程一起挂掉，而主线程的生命周期就是一个进程的生命周期。
+def display(content):
+    while True:
+        print(content, end='', flush=True)
+        time.sleep(0.1)
+
+
+def main():
+    Thread(target=display, args=('Ping', )).start()
+    Thread(target=display, args=('Pong', )).start()
+上面的代码中，我们将print函数的参数flush设置为True，这是因为flush参数的值如果为False，而print又没有做换行处理，就会导致每次print输出的内容被放到操作系统的输出缓冲区，直到缓冲区被输出的内容塞满，才会清空缓冲区产生一次输出。上述现象是操作系统为了减少 I/O 中断，提升 CPU 利用率做出的设定，为了让代码产生直观交互，我们才将flush参数设置为True，强制每次输出都清空输出缓冲区。
+
+上面的代码运行起来之后是不会停止的，因为两个子线程中都有死循环，除非你手动中断代码的执行。但是，如果在创建线程对象时，将名为daemon的参数设置为True，这两个线程就会变成守护线程，那么在其他线程结束时，即便有死循环，两个守护线程也会挂掉，不会再继续执行下去，
+def display(content):
+    while True:
+        print(content, end='', flush=True)
+        time.sleep(0.1)
+
+
+def main():
+    Thread(target=display, args=('Ping', ), daemon=True).start()
+    Thread(target=display, args=('Pong', ), daemon=True).start()
+    time.sleep(5)
+上面的代码，我们在主线程中添加了一行time.sleep(5)让主线程休眠5秒，在这个过程中，输出Ping和Pong的守护线程会持续运转，直到主线程在5秒后结束，这两个守护线程也被销毁，不再继续运行。
+
+资源竞争
+在编写多线程代码时，不可避免的会遇到多个线程竞争同一个资源（对象）的情况。可以使用锁机制，通过锁对操作数据的关键代码加以保护。Python 标准库的threading模块提供了Lock和RLock类来支持锁机制，这里我们不去深究二者的区别，建议大家直接使用RLock

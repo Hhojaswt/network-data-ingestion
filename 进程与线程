@@ -126,3 +126,71 @@ def main():
         for _ in range(100):
             pool.submit(account.deposit, 1)
     print(account.balance)
+
+
+创建进程
+在 Python 中可以基于Process类来创建进程，虽然进程和线程有着本质的差别，但是Process类和Thread类的用法却非常类似。
+在使用Process类的构造器创建对象时，也是通过target参数传入一个函数来指定进程要执行的代码，而args和kwargs参数可以指定该函数使用的参数值。
+def sub_task(content, nums)://sub_task 函数是一个简单的任务函数，它会打印出当前进程的 PID 和名字，并执行一些基于参数的操作。
+    # 通过current_process函数获取当前进程对象
+    # 通过进程对象的pid和name属性获取进程的ID号和名字
+    print(f'PID: {current_process().pid}')
+    print(f'Name: {current_process().name}')
+    # 通过下面的输出不难发现，每个进程都有自己的nums列表，进程之间本就不共享内存
+    # 在创建子进程时复制了父进程的数据结构，三个进程从列表中pop(0)得到的值都是20
+    counter, total = 0, nums.pop(0) //这里 nums 是一个列表，pop(0) 操作会从列表的开头移除一个元素并返回。由于进程是独立的，每个进程对 nums 的操作互不影响，因此每个子进程拿到的 total 值会是列表中的第一个元素。
+    print(f'Loop count: {total}')
+    sleep(0.5)
+    while counter < total:
+        counter += 1
+        print(f'{counter}: {content}')
+        sleep(0.01)
+
+
+def main():
+    nums = [20, 30, 40]
+    # 创建并启动进程来执行指定的函数
+    Process(target=sub_task, args=('Ping', nums)).start()
+    Process(target=sub_task, args=('Pong', nums)).start()
+    # 在主进程中执行sub_task函数
+    sub_task('Good', nums)
+
+
+多进程和多线程的比较
+对于爬虫这类 I/O 密集型任务来说，使用多进程并没有什么优势；但是对于计算密集型任务来说，多进程相比多线程，在效率上会有显著的提升
+import concurrent.futures
+
+PRIMES = [
+    1116281,
+    1297337,
+    104395303,
+    472882027,
+    533000389,
+    817504243,
+    982451653,
+    112272535095293,
+    112582705942171,
+    112272535095293,
+    115280095190773,
+    115797848077099,
+    1099726899285419
+] * 5
+
+
+def is_prime(n):
+    """判断素数"""
+    for i in range(2, int(n ** 0.5) + 1)://求 n 的平方根的操作，等价于 math.sqrt(n),使用了 int() 函数将平方根的结果转换为整数, + 1 用于确保 range 生成的序列包含整数 int(n ** 0.5)
+        if n % i == 0:
+            return False
+    return n != 1
+
+
+def main():
+    """主函数"""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+        for number, prime in zip(PRIMES, executor.map(is_prime, PRIMES)):
+            print('%d is prime: %s' % (number, prime))
+
+
+if __name__ == '__main__':
+    main()

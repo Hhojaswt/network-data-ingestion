@@ -1,0 +1,63 @@
+# 生成器是什么？
+生成器（Generator）是 Python 中一种特殊的迭代器，通过 惰性求值（lazy evaluation） 的方式生成序列。生成器可以动态产生数据而不一次性将所有数据存储在内存中，这使得它非常适合处理大规模数据。
+
+生成器是通过以下方式创建的：
+使用带有 yield 关键字的函数。
+使用 生成器表达式（类似列表推导式）。
+
+
+
+# 生成器的特点
+**迭代器协议**：
+生成器是迭代器，它实现了 __iter__() 和 __next__() 方法，可以通过 next() 函数逐个获取值。
+
+**惰性求值**：
+每次调用 next() 时才会生成下一个值，而不是一次性计算所有值并存储。
+
+**状态保存**：
+生成器会记住上一次返回值的位置，并在下次迭代时从该位置继续执行。
+
+**一次性使用**：
+生成器只能被迭代一次。如果需要再次使用，必须重新创建生成器。
+
+
+
+
+# 生成器在代码中的作用
+1. 节省内存
+如果需要处理非常大的数据集，生成器可以避免一次性将数据加载到内存。
+例子：计算 1 到 1,000,000 的平方。
+
+def square_numbers(n):
+    for i in range(1, n + 1):
+        yield i * i
+
+gen = square_numbers(1000000)
+print(next(gen))  # 1
+print(next(gen))  # 4
+
+2. 流式处理
+生成器适合处理实时产生的数据流，例如读取日志文件、从网络中获取数据等。
+例子：按行读取大文件。
+
+def read_large_file(file_path):
+    with open(file_path, 'r') as file:
+        for line in file:
+            yield line.strip()  # 每次返回一行
+
+for line in read_large_file('large_file.txt'):
+    print(line)
+
+3. 无限序列
+生成器可以创建理论上无限大的序列。
+例子：生成斐波那契数列。
+
+def fibonacci():
+    a, b = 0, 1
+    while True:
+        yield a
+        a, b = b, a + b
+
+fib_gen = fibonacci()
+for _ in range(10):
+    print(next(fib_gen))  # 输出前 10 个斐波那契数

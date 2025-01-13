@@ -71,3 +71,43 @@ if __name__ == '__main__':
 执行上面的代码会发现，9个分别会阻塞1秒钟的协程总共只阻塞了约1秒种的时间，因为阻塞的协程对象会放弃对 CPU 的占有而不是让 CPU 处于闲置状态，这种方式大大的提升了 CPU 的利用率。
 
 aiohttp库
+
+import asyncio
+import re
+
+import aiohttp //一个异步 HTTP 客户端库，用于发送 HTTP 请求。
+from aiohttp import ClientSession
+
+TITLE_PATTERN = re.compile(r'<title.*?>(.*?)</title>', re.DOTALL) //TITLE_PATTERN 是一个用于匹配 HTML 网页 <title> 标签内容的正则表达式。
+
+
+async def fetch_page_title(url):
+    async with aiohttp.ClientSession(headers={
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36',
+    }) as session:  # type: ClientSession
+        async with session.get(url, ssl=False) as resp: // 向目标 URL 发起 GET 请求。ssl=False 忽略了 SSL 证书验证。
+            if resp.status == 200:
+                html_code = await resp.text()
+                matcher = TITLE_PATTERN.search(html_code)
+                title = matcher.group(1).strip()
+                print(title)
+
+
+def main():
+    urls = [
+        'https://www.python.org/',
+        'https://www.jd.com/',
+        'https://www.baidu.com/',
+        'https://www.taobao.com/',
+        'https://git-scm.com/',
+        'https://www.sohu.com/',
+        'https://gitee.com/',
+        'https://www.amazon.com/',
+        'https://www.usa.gov/',
+        'https://www.nasa.gov/'
+    ]
+    objs = [fetch_page_title(url) for url in urls] //将 fetch_page_title(url) 协程对象创建为列表 objs
+    await asyncio.gather(*objs)  # gather 比 wait 更加适合这种批量协程任务的场景
+
+if __name__ == '__main__':
+    main()

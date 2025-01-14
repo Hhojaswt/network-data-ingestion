@@ -111,3 +111,37 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+## 并发编程在爬虫中的应用
+
+“360图片”网站的页面使用了 Ajax 技术，这是很多网站都会使用的一种异步加载数据和局部刷新页面的技术。简单的说，页面上的图片都是通过 JavaScript 代码异步获取 JSON 数据并动态渲染生成的
+例如，要获取“美女”频道的图片，我们可以请求如下所示的URL，其中参数ch表示请求的频道，=后面的参数值beauty就代表了“美女”频道，参数sn相当于是页码，0表示第一页（共30张图片），30表示第二页，60表示第三页
+https://image.so.com/zjl?ch=beauty&sn=0
+
+
+## 单线程版本爬虫
+import os
+
+import requests
+
+def download_picture(url):
+    filename = url[url.rfind('/') + 1:] //rfind() 是 Python 字符串的方法,+1 的作用是跳过 / 的位置，从下一个字符开始。: 表示从起始索引（url.rfind('/') + 1）到字符串结尾。
+    resp = requests.get(url) //请求图片资源。
+    if resp.status_code == 200:
+        with open(f'images/beauty/{filename}', 'wb') as file: //创建文件夹路径并保存图片为二进制文件。
+            file.write(resp.content)
+
+def main():
+    if not os.path.exists('images/beauty'): //检查路径是否存在。
+        os.makedirs('images/beauty') //创建路径 images/beauty。
+    for page in range(3): //生成 0 到 2 的数字，用于分页。
+        resp = requests.get(f'https://image.so.com/zjl?ch=beauty&sn={page * 30}') //动态生成 API 请求 URL，其中 sn 参数控制分页（每页 30 张）。
+        if resp.status_code == 200:
+            pic_dict_list = resp.json()['list'] //解析响应数据为 JSON 格式，并提取 list 键的值。
+            for pic_dict in pic_dict_list: //# 遍历每张图片的数据。
+                download_picture(pic_dict['qhimg_url']) //从每张图片的字典中提取图片的 URL。
+
+if __name__ == '__main__':
+    main()
+向 API 请求 3 页数据（每页包含 30 张图片的信息）。

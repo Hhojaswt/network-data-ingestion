@@ -145,3 +145,83 @@ def main():
 if __name__ == '__main__':
     main()
 向 API 请求 3 页数据（每页包含 30 张图片的信息）。
+
+
+## 异步I/O版本
+import asyncio
+import json
+import os
+
+import aiofile
+import aiohttp
+
+
+async def download_picture(session, url):
+    filename = url[url.rfind('/') + 1:]
+    async with session.get(url, ssl=False) as resp:
+        if resp.status == 200:
+            data = await resp.read()
+            async with aiofile.async_open(f'images/beauty/{filename}', 'wb') as file:
+                await file.write(data)
+
+
+async def fetch_json():
+    async with aiohttp.ClientSession() as session:
+        for page in range(3):
+            async with session.get(
+                url=f'https://image.so.com/zjl?ch=beauty&sn={page * 30}',
+                ssl=False
+            ) as resp:
+                if resp.status == 200:
+                    json_str = await resp.text()
+                    result = json.loads(json_str)
+                    for pic_dict in result['list']:
+                        await download_picture(session, pic_dict['qhimg_url'])
+
+
+def main():
+    if not os.path.exists('images/beauty'):
+        os.makedirs('images/beauty')
+    loop = asyncio.new_event_loop()  # 创建新的事件循环
+    asyncio.set_event_loop(loop)  # 将其设置为当前线程的事件循环
+    try:
+        loop.run_until_complete(fetch_json())
+    finally:
+        loop.close()
+
+
+if __name__ == '__main__':
+    main()
+
+## 多线程版本
+import os
+from concurrent.futures import ThreadPoolExecutor
+
+import requests
+
+
+def download_picture(url):
+    filename = url[url.rfind('/') + 1:]
+    resp = requests.get(url)
+    if resp.status_code == 200:
+        with open(f'images/beauty/{filename}', 'wb') as file:
+            file.write(resp.content)
+
+
+def main():
+    if not os.path.exists('images/beauty'):
+        os.makedirs('images/beauty')
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        for page in range(3):
+            resp = requests.get(f'https://image.so.com/zjl?ch=beauty&sn={page * 30}')
+            if resp.status_code == 200:
+                pic_dict_list = resp.json()['list']
+                for pic_dict in pic_dict_list:
+                    pool.submit(download_picture, pic_dict['qhimg_url'])
+
+
+if __name__ == '__main__':
+    main()
+
+使用多线程和异步 I/O 都可以改善爬虫程序的性能，因为我们不用将时间浪费在因 I/O 操作造成的等待和阻塞上，而time命令的执行结果也告诉我们，单线程的代码 CPU 利用率仅仅只有12%，而多线程版本的 CPU 利用率则高达95%；单线程版本的爬虫执行时间约21秒，而多线程和异步 I/O 的版本仅执行了3秒钟。
+另外，在运行时间差别不大的情况下，多线程的代码比异步 I/O 的代码耗费了更多的 CPU 资源，这是因为多线程的调度和切换也需要花费 CPU 时间。

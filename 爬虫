@@ -245,5 +245,17 @@ browser = webdriver.Chrome()
    查找元素和模拟用户行为
 接下来，我们可以尝试模拟用户在百度首页的文本框输入搜索关键字并点击“百度一下”按钮。在完成页面加载后，可以通过Chrome对象的find_element和find_elements方法来获取页面元素，Selenium 支持多种获取元素的方式，包括：CSS 选择器、XPath、元素名字（标签名）、元素 ID、类名等，前者可以获取单个页面元素（WebElement对象），后者可以获取多个页面元素构成的列表。
 获取到WebElement对象以后，可以通过send_keys来模拟用户输入行为，可以通过click来模拟用户点击操作
-browser.get('https://www.baidu.com/')
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+
+browser = webdriver.Chrome() //这一行代码启动了一个 Chrome 浏览器实例，webdriver.Chrome() 会打开一个新的浏览器窗口。
+browser.get('https://www.baidu.com/') //通过调用 browser.get() 方法，程序会让浏览器打开百度的主页。
+# 通过元素ID获取元素, 这行代码通过元素的 ID 属性获取百度页面上的搜索框元素。百度页面上的搜索框元素的 ID 是 'kw'
+kw_input = browser.find_element(By.ID, 'kw')
+# 模拟用户输入行为, 使用 send_keys() 方法模拟用户输入行为。这里输入了字符串 'Python'，模拟用户在搜索框中键入文字。
+kw_input.send_keys('Python')
+# 通过CSS选择器获取元素
+su_button = browser.find_element(By.CSS_SELECTOR, '#su')
+# 模拟用户点击行为,使用 send_keys() 方法模拟用户输入行为。这里输入了字符串 'Python'，模拟用户在搜索框中键入文字。
+su_button.click()
 

@@ -306,3 +306,54 @@ element_to_be_clickable	元素可点击
 element_to_be_selected	元素被选中
 element_located_to_be_selected	定位的元素被选中
 alert_is_present	出现 Alert 弹窗
+
+
+## 执行JavaScript代码
+如果希望在浏览器窗口中加载更多的内容，可以通过浏览器对象的execute_scripts方法执行 JavaScript 代码来实现。我们在上面的代码中截屏之前加入下面的代码，这样就可以利用 JavaScript 将网页滚到最下方。
+# 执行JavaScript代码,document.documentElement：这是指页面的根元素，通常是 <html> 元素。它表示整个网页的最外层容器。
+scrollTop：这个属性表示页面滚动条的垂直位置，即距离页面顶部的像素数。默认情况下，这个属性表示文档的总高度，包括不可见部分（即已经滚动出视口外的部分）。换句话说，scrollHeight 是整个页面的实际高度。
+browser.execute_script('document.documentElement.scrollTop = document.documentElement.scrollHeight')
+
+
+## 使用 Selenium 从“360图片”网站搜索和下载图片
+import os
+import time
+from concurrent.futures import ThreadPoolExecutor
+
+import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+
+DOWNLOAD_PATH = 'images/'
+
+
+def download_picture(picture_url: str):
+    """
+    下载保存图片
+    :param picture_url: 图片的URL
+    """
+    filename = picture_url[picture_url.rfind('/') + 1:]
+    resp = requests.get(picture_url)
+    with open(os.path.join(DOWNLOAD_PATH, filename), 'wb') as file:
+        file.write(resp.content)
+
+
+if not os.path.exists(DOWNLOAD_PATH):
+    os.makedirs(DOWNLOAD_PATH)
+browser = webdriver.Chrome()
+browser.get('https://image.so.com/z?ch=beauty')
+browser.implicitly_wait(10)
+kw_input = browser.find_element(By.CSS_SELECTOR, 'input[name=q]')
+kw_input.send_keys('苍老师')
+kw_input.send_keys(Keys.ENTER)
+for _ in range(10):
+    browser.execute_script(
+        'document.documentElement.scrollTop = document.documentElement.scrollHeight'
+    )
+    time.sleep(1)
+imgs = browser.find_elements(By.CSS_SELECTOR, 'div.waterfall img')
+with ThreadPoolExecutor(max_workers=32) as pool:
+    for img in imgs:
+        pic_url = img.get_attribute('src')
+        pool.submit(download_picture, pic_url)

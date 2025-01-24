@@ -227,7 +227,7 @@ if __name__ == '__main__':
 另外，在运行时间差别不大的情况下，多线程的代码比异步 I/O 的代码耗费了更多的 CPU 资源，这是因为多线程的调度和切换也需要花费 CPU 时间。
 
 
-## 抓取网页动态内容
+### 抓取网页动态内容
 全球约有四分之三的网站是通过JavaScript动态生成的，这就意味着在浏览器窗口中“查看网页源代码”时无法在HTML代码中找到这些内容，也就是说我们之前用的抓取数据的方式无法正常运转了。
 解决这样的问题基本上有两种方案，一是获取提供动态内容的数据接口，这种方式也适用于抓取手机 App 的数据；另一种是通过自动化测试工具 Selenium 运行浏览器获取渲染后的动态内容。
 对于第一种方案，我们可以使用浏览器的“开发者工具”或者更为专业的抓包工具（如：Charles、Fiddler、Wireshark等）来获取到数据接口
@@ -242,12 +242,11 @@ from selenium import webdriver
 browser = webdriver.Chrome()
 # 加载指定的页面
 
-   查找元素和模拟用户行为
+##   查找元素和模拟用户行为
 接下来，我们可以尝试模拟用户在百度首页的文本框输入搜索关键字并点击“百度一下”按钮。在完成页面加载后，可以通过Chrome对象的find_element和find_elements方法来获取页面元素，Selenium 支持多种获取元素的方式，包括：CSS 选择器、XPath、元素名字（标签名）、元素 ID、类名等，前者可以获取单个页面元素（WebElement对象），后者可以获取多个页面元素构成的列表。
 获取到WebElement对象以后，可以通过send_keys来模拟用户输入行为，可以通过click来模拟用户点击操作
 from selenium import webdriver
-from selenium.webdriver.common.by import By
-
+from selenium.webdriver.common.by import B
 browser = webdriver.Chrome() //这一行代码启动了一个 Chrome 浏览器实例，webdriver.Chrome() 会打开一个新的浏览器窗口。
 browser.get('https://www.baidu.com/') //通过调用 browser.get() 方法，程序会让浏览器打开百度的主页。
 # 通过元素ID获取元素, 这行代码通过元素的 ID 属性获取百度页面上的搜索框元素。百度页面上的搜索框元素的 ID 是 'kw'
@@ -259,3 +258,51 @@ su_button = browser.find_element(By.CSS_SELECTOR, '#su')
 # 模拟用户点击行为,使用 send_keys() 方法模拟用户输入行为。这里输入了字符串 'Python'，模拟用户在搜索框中键入文字。
 su_button.click()
 
+
+
+##  隐式等待和显式等待
+网页上的元素可能是动态生成的，在我们使用find_element或find_elements方法获取的时候，可能还没有完成渲染，这时会引发NoSuchElementException错误。为了解决这个问题，我们可以使用隐式等待的方式，通过设置等待时间让浏览器完成对页面元素的渲染。
+除此之外，我们还可以使用显示等待，通过创建WebDriverWait对象，并设置等待时间和条件，当条件没有满足时，我们可以先等待再尝试进行后续的操作
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions
+from selenium.webdriver.support.wait import WebDriverWait
+
+browser = webdriver.Chrome()
+# 设置浏览器窗口大小
+browser.set_window_size(1200, 800)
+browser.get('https://www.baidu.com/')
+# 设置隐式等待时间为10秒
+browser.implicitly_wait(10)
+kw_input = browser.find_element(By.ID, 'kw')
+kw_input.send_keys('Python')
+su_button = browser.find_element(By.CSS_SELECTOR, '#su')
+su_button.click()
+# 创建显示等待对象
+wait_obj = WebDriverWait(browser, 10)
+# 设置等待条件（等搜索结果的div出现）
+wait_obj.until(
+    expected_conditions.presence_of_element_located(
+        (By.CSS_SELECTOR, '#content_left')
+    )
+)
+# 截屏
+browser.get_screenshot_as_file('python_result.png')
+
+隐式等待是告诉 Selenium 在查找元素时，如果元素没有立即找到，就等待一段时间,
+显式等待是针对某个具体条件进行的等待，通常在你想等待某个特定的事件或者条件发生时使用。隐式等待和显式等待不应该混用。这两种等待机制会相互影响，可能导致一些意外的行为。
+
+等待条件	具体含义
+title_is / title_contains	标题是指定的内容 / 标题包含指定的内容
+visibility_of	元素可见
+presence_of_element_located	定位的元素加载完成
+visibility_of_element_located	定位的元素变得可见
+invisibility_of_element_located	定位的元素变得不可见
+presence_of_all_elements_located	定位的所有元素加载完成
+text_to_be_present_in_element	元素包含指定的内容
+text_to_be_present_in_element_value	元素的value属性包含指定的内容
+frame_to_be_available_and_switch_to_it	载入并切换到指定的内部窗口
+element_to_be_clickable	元素可点击
+element_to_be_selected	元素被选中
+element_located_to_be_selected	定位的元素被选中
+alert_is_present	出现 Alert 弹窗

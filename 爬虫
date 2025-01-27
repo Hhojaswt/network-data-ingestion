@@ -357,3 +357,81 @@ with ThreadPoolExecutor(max_workers=32) as pool:
     for img in imgs:
         pic_url = img.get_attribute('src')
         pool.submit(download_picture, pic_url)
+
+
+
+# 爬虫框架Scrapy
+Scrapy 是基于 Python 的一个非常流行的网络爬虫框架，可以用来抓取 Web 站点并从页面中提取结构化的数据。Scrapy 的工作流程本质上是一个循环，从 Spider 发起请求到解析数据并存储，最终通过引擎协调各模块完成数据抓取任务。
+Spider: 用户自定义的用来解析网页并抓取特定URL的类,简单的说就是用来定义特定网站的抓取和解析规则的模块。
+Scrapy 的整个数据处理流程由引擎进行控制，通常的运转流程包括以下的步骤：
+
+1. 引擎询问蜘蛛需要处理哪个网站，并让蜘蛛将第一个需要处理的 URL 交给它。
+
+2. 引擎让调度器将需要处理的 URL 放在队列中。
+
+3. 引擎从调度那获取接下来进行爬取的页面。
+
+4. 调度将下一个爬取的 URL 返回给引擎，引擎将它通过下载中间件发送到下载器。
+
+5. 当网页被下载器下载完成以后，响应内容通过下载中间件被发送到引擎；如果下载失败了，引擎会通知调度器记录这个 URL，待会再重新下载。
+
+6. 引擎收到下载器的响应并将它通过蜘蛛中间件发送到蜘蛛进行处理。
+
+7. 蜘蛛处理响应并返回爬取到的数据条目，此外还要将需要跟进的新的 URL 发送给引擎。
+
+8. 引擎将抓取到的数据条目送入数据管道，把新的 URL 发送给调度器放入队列中。
+
+上述操作中的第2步到第8步会一直重复直到调度器中没有需要请求的 URL，爬虫就停止工作。
+
+## 安装和使用Scrapy
+安装：pip install scrapy
+在命令行中使用scrapy命令创建名为demo的项目： scrapy startproject demo
+切换到demo 目录，创建名为douban的蜘蛛程序：scrapy genspider douban movie.douban.com
+
+eg: 爬取豆瓣电影 Top250 电影标题、评分和金句.
+1. 在items.py的Item类中定义字段, Item 类是 Scrapy 提供的一个容器，用于定义爬取数据的结构。通过明确地定义字段，方便在爬取过程中将解析的数据存储在统一格式的对象中，确保数据的一致性。其他开发者可以一眼看出数据结构和需要爬取的字段是什么
+import scrapy
+
+class DoubanItem(scrapy.Item):
+    title = scrapy.Field()  // 电影标题
+    score = scrapy.Field()  // 评分
+    motto = scrapy.Field()  // 电影简介或标语
+
+这样，解析到的数据会存储成如下的结构化对象：
+{
+    'title': '肖申克的救赎',
+    'score': '9.7',
+    'motto': '希望让人自由。'
+}
+
+2. 修改spiders文件夹中名为douban.py 的文件，我们可以通过对Response对象的解析，获取电影的信息，我们可以使用 CSS 选择器进行页面解析。
+如果还要生成后续爬取的请求，我们可以用yield产出Request对象。Request对象有两个非常重要的属性，一个是url，它代表了要请求的地址；一个是callback，它代表了获得响应之后要执行的回调函数。
+import scrapy
+from scrapy import Selector, Request
+from scrapy.http import HtmlResponse
+
+from demo.demo.items import MovieItem
+
+
+class DoubanSpider(scrapy.Spider):
+    name = 'douban' //爬虫名称，运行时使用 `scrapy crawl douban`
+    allowed_domains = ['movie.douban.com'] //限定爬取的域名范围，防止访问不相关的网站
+
+    def start_requests(self):
+        for page in range(10):
+            yield Request(url=f'https://movie.douban.com/top250?start={page * 25}')
+
+    def parse(self, response: HtmlResponse): //Scrapy 爬虫的核心，用于解析响应 (response)。Scrapy 会自动把初始 URL (start_urls) 的响应传入 response 对象。
+        sel = Selector(response) //创建一个选择器对象，便于解析 HTML。
+        movie_items = sel.css('#content > div > div.article > ol > li') //通过 CSS 选择器定位到电影列表，选择 Top250 页面中每个电影条目的 <li> 元素。
+        for movie_sel in movie_items: //遍历每个电影条目：
+            item = MovieItem() 
+            item['title'] = movie_sel.css('.title::text').extract_first()
+            item['score'] = movie_sel.css('.rating_num::text').extract_first()
+            item['motto'] = movie_sel.css('.inq::text').extract_first()
+            yield item //将提取的电影信息包装为 MovieItem 对象并交给 Scrapy 管道处理（如保存到文件或数据库）。
+
+        hrefs = sel.css('#content > div > div.article > div.paginator > a::attr("href")')
+        for href in hrefs:
+            full_url = response.urljoin(href.extract())
+            yield Request(url=full_url)

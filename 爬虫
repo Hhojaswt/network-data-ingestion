@@ -452,3 +452,31 @@ class MovieItemPipeline:
         self.wb.save('豆瓣电影数据.xlsx')
 蜘蛛程序产生一个Item对象交给引擎时，引擎(记录在settings.py中)会将该Item对象交给pipeline，这时我们配置好的pipeline的parse_item方法就会被执行
 
+4. 修改settings.py文件对项目进行配置，主要需要修改以下几个配置
+// 用户浏览器，指定爬虫在向目标网站发送 HTTP 请求时所使用的标识（User-Agent 字段）这是爬虫模拟浏览器行为时最常见的一种做法。
+USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36'
+
+// 并发请求数量，Scrapy 内部有一个调度和下载的引擎（Engine），它会按照 CONCURRENT_REQUESTS 限制同一时刻往下发送多少个请求到下载器（Downloader）。该并发数目直接影响爬虫的抓取速度和对网站的压力。
+CONCURRENT_REQUESTS = 4
+
+# 下载延迟
+DOWNLOAD_DELAY = 3
+# 随机化下载延迟，如果 RANDOMIZE_DOWNLOAD_DELAY = True，Scrapy 会在延迟时间的基础上做一个随机系数，让抓取显得更像用户行为而非固定模式。
+RANDOMIZE_DOWNLOAD_DELAY = True
+
+# 是否遵守爬虫协议
+ROBOTSTXT_OBEY = True
+
+# 配置数据管道，爬虫将页面解析出的 item 对象通过 yield item 交给引擎。Scrapy 引擎会根据 ITEM_PIPELINES 中的配置，将 item 在每个已注册的管道中依次传递和处理。
+ITEM_PIPELINES = {
+   'demo.pipelines.MovieItemPipeline': 300,
+}
+
+
+## 总体执行流程简要说明
+启动爬虫：Scrapy 引擎会读取 settings.py 中的配置，并初始化各个组件（Downloader、Scheduler、Pipeline 等）。
+请求调度：在爬虫解析页面时创建新的 Request，Scrapy 的调度器参考 CONCURRENT_REQUESTS 限制并发，配合 DOWNLOAD_DELAY（和可选的随机化延迟）来控制爬虫的爬取速度。
+请求头构造：当请求对象准备发往目标网站时，会从设置中读取 USER_AGENT 作为默认的请求头（如果没有在代码中手动覆盖）。
+遵守 robots.txt：如果开启了 ROBOTSTXT_OBEY, Scrapy 会检测并过滤那些在 robots.txt 中被禁止的路径。
+获取响应：Downloader 获取响应后交给爬虫的解析方法（如 parse）进行数据提取或生成下一批请求。
+数据入管道：爬虫 parse 方法中产生的 item 会经过 ITEM_PIPELINES 中注册的管道进行进一步处理或存储。

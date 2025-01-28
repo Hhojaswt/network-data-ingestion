@@ -410,7 +410,7 @@ import scrapy
 from scrapy import Selector, Request
 from scrapy.http import HtmlResponse
 
-from demo.demo.items import MovieItem
+from demo.items import MovieItem
 
 
 class DoubanSpider(scrapy.Spider):
@@ -431,7 +431,24 @@ class DoubanSpider(scrapy.Spider):
             item['motto'] = movie_sel.css('.inq::text').extract_first()
             yield item //将提取的电影信息包装为 MovieItem 对象并交给 Scrapy 管道处理（如保存到文件或数据库）。
 
-        hrefs = sel.css('#content > div > div.article > div.paginator > a::attr("href")')
-        for href in hrefs:
-            full_url = response.urljoin(href.extract())
-            yield Request(url=full_url)
+3. 如果希望完成爬虫数据的持久化，可以在pipelines中处理蜘蛛程序产生的Item对象，pipeline可以清理 HTML 数据，验证爬取的数据。将爬取的结果进行持久化操作。
+import openpyxl
+
+from demo.items import MovieItem
+
+class MovieItemPipeline:
+
+    def __init__(self):
+        self.wb = openpyxl.Workbook() //创建一个新的 Excel 工作簿
+        self.sheet = self.wb.active //获取活动工作表
+        self.sheet.title = 'Top250' //设置工作表标题为 "Top250"
+        self.sheet.append(('名称', '评分', '名言')) //在第一行添加列标题
+
+    def process_item(self, item: MovieItem, spider): //Scrapy 的 Pipeline 中的核心方法，每当一个 Item 被爬取时，该方法会被调用。
+        self.sheet.append((item['title'], item['score'], item['motto']))
+        return item
+
+    def close_spider(self, spider):
+        self.wb.save('豆瓣电影数据.xlsx')
+蜘蛛程序产生一个Item对象交给引擎时，引擎(记录在settings.py中)会将该Item对象交给pipeline，这时我们配置好的pipeline的parse_item方法就会被执行
+
